@@ -1,9 +1,22 @@
 #!/usr/bin/env php
 <?php
 
-// Check for command-line arguments
+// Autoloader (PSR-4 compliant)
+spl_autoload_register(function ($class) {
+    $prefix = 'App\\';
+    if (strncmp($prefix, $class, strlen($prefix)) !== 0) {
+        return;
+    }
+    $relativeClass = substr($class, strlen($prefix));
+    $file = __DIR__ . '/app/' . str_replace('\\', '/', $relativeClass) . '.php';
+    if (file_exists($file)) {
+        require_once $file;
+    }
+});
+
+// Command-line argument check
 if ($argc < 2) {
-    echo "ApexPHP CLI is ready. Use 'apex help' for a list of commands.\n";
+    echo "ApexPHP CLI. Usage: apex <command>\n";
     exit(0);
 }
 
@@ -14,76 +27,120 @@ switch ($command) {
     case 'generate:module':
         handleGenerateModule($argv);
         break;
+    case 'migrate':
+        handleMigrate();
+        break;
     default:
         echo "Unknown command: $command\n";
-        echo "Usage: apex generate:module <ModuleName>\n";
         exit(1);
 }
 
 // --- Command Handlers ---
 
-/**
- * Handles the 'generate:module' command.
- */
+function handleMigrate()
+{
+    echo "Starting migration...\n";
+    try {
+        $pdo = App\Core\Database::getInstance();
+        $modulesPath = __DIR__ . '/app/Modules';
+        if (!is_dir($modulesPath)) {
+            echo "Modules directory not found.\n";
+            return;
+        }
+        $moduleIterator = new DirectoryIterator($modulesPath);
+        foreach ($moduleIterator as $moduleDir) {
+            if ($moduleDir->isDir() && !$moduleDir->isDot()) {
+                $moduleName = $moduleDir->getFilename(); // e.g., "Payments"
+                $modelFilePattern = $moduleDir->getPathname() . '/*Model.php'; // Look for *Model.php
+
+                foreach (glob($modelFilePattern) as $modelFile) {
+                    $className = basename($modelFile, '.php'); // e.g., "PaymentsModel"
+                    $fullClassName = 'App\\Modules\\' . $moduleName . '\\' . $className;
+
+                    if (class_exists($fullClassName) && is_subclass_of($fullClassName, 'App\Core\ApexORM\Model')) {
+                        $tableName = $fullClassName::getTableName();
+                        $schema = $fullClassName::getSchema();
+                        if (empty($schema)) {
+                            echo "  - Skipping `{$tableName}`: Schema is empty.\n";
+                            continue;
+                        }
+                        $columns = [];
+                        foreach ($schema as $column => $type) {
+                            $columns[] = "`{$column}` {$type}";
+                        }
+                        $sql = "CREATE TABLE IF NOT EXISTS `{$tableName}` (" . implode(', ', $columns) . ");";
+                        $pdo->exec($sql);
+                        echo "  - Migrated table: `{$tableName}`\n";
+                    }
+                }
+            }
+        }
+    } catch (Exception $e) {
+        echo "An error occurred during migration: " . $e->getMessage() . "\n";
+        exit(1);
+    }
+    echo "Migration finished.\n";
+}
+
 function handleGenerateModule($argv)
 {
     if (count($argv) < 3) {
         echo "Error: Missing module name.\n";
-        echo "Usage: apex generate:module <ModuleName>\n";
         exit(1);
     }
     $moduleName = $argv[2];
-
-    // Sanitize module name to prevent directory traversal attacks
     $safeModuleName = basename($moduleName);
-    if ($safeModuleName !== $moduleName) {
-        echo "Error: Invalid characters in module name.\n";
+    if ($safeModuleName !== $moduleName || !ctype_alnum($safeModuleName)) {
+        echo "Error: Module name must be a single alphanumeric word.\n";
         exit(1);
     }
 
-    if (!ctype_alnum($safeModuleName)) {
-        echo "Error: Module name must be alphanumeric.\n";
-        exit(1);
-    }
-
-    $modulePath = 'app/modules/' . strtolower($safeModuleName);
     $capitalizedModuleName = ucfirst($safeModuleName);
+    $modulePath = 'app/Modules/' . $capitalizedModuleName;
 
     if (file_exists($modulePath)) {
-        echo "Error: Module '$safeModuleName' already exists.\n";
+        echo "Error: Module '$capitalizedModuleName' already exists.\n";
         exit(1);
     }
-
-    // Create the module directory
     if (!mkdir($modulePath, 0777, true)) {
         echo "Error: Failed to create directory at $modulePath\n";
         exit(1);
     }
-
     echo "Created module directory: $modulePath\n";
 
-    // Define the files to be created
-    $filesToCreate = [
-        $capitalizedModuleName . '.model.php',
-        $capitalizedModuleName . '.controller.php',
-        $capitalizedModuleName . '.service.php',
-        $capitalizedModuleName . '.routes.php',
-        $capitalizedModuleName . '.policy.php',
-    ];
+    $fileTypes = ['Model', 'Controller', 'Service', 'Routes', 'Policy'];
 
-    // Create each file with placeholder content
-    foreach ($filesToCreate as $filename) {
+    foreach ($fileTypes as $fileType) {
+        $className = $capitalizedModuleName . $fileType;
+        $filename = $className . '.php';
         $filePath = $modulePath . '/' . $filename;
-        $fileType = str_replace('.php', '', explode('.', $filename)[1]);
-        $placeholderContent = "<?php\n\nnamespace App\\Modules\\" . $capitalizedModuleName . ";\n\nclass " . $capitalizedModuleName . ucfirst($fileType) . "\n{\n    // TODO: Implement " . $fileType . " logic\n}\n";
 
-        if (file_put_contents($filePath, $placeholderContent) === false) {
-            echo "Error: Failed to create file: $filePath\n";
-            // Optional: Add cleanup logic here to remove created directory
-            exit(1);
+        $placeholderContent = '';
+        if ($fileType === 'Model') {
+            $placeholderContent = <<<EOD
+<?php
+namespace App\\Modules\\{$capitalizedModuleName};
+use App\\Core\\ApexORM\\Model;
+class {$className} extends Model
+{
+    protected static array \$schema = [
+        'id'          => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+        'created_at'  => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    ];
+}
+EOD;
+        } else {
+            $placeholderContent = <<<EOD
+<?php
+namespace App\\Modules\\{$capitalizedModuleName};
+class {$className}
+{
+    // TODO: Implement {$fileType} logic for the {$capitalizedModuleName} module.
+}
+EOD;
         }
+        file_put_contents($filePath, $placeholderContent);
         echo "  -> Created $filename\n";
     }
-
-    echo "\nModule '$safeModuleName' created successfully!\n";
+    echo "\nModule '$capitalizedModuleName' created successfully!\n";
 }

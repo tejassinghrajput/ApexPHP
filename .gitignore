@@ -1,0 +1,27 @@
+# Composer dependencies
+/vendor/
+
+# Node.js dependencies
+/node_modules/
+
+# Database files
+/database/
+
+# Log files
+*.log
+logs/
+*.logs
+
+# Environment variables file
+.env
+.env.local
+.env.*.local
+
+# IDE and OS specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
