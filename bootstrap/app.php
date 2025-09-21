@@ -1,43 +1,56 @@
 <?php
 
+use App\Core\Application;
+use App\Core\Config;
+use App\Core\Database;
+use App\Core\Request;
+use App\Core\Router;
+
 /**
- * --------------------------------------------------------------------------
- * Create The Application
- * --------------------------------------------------------------------------
- *
- * The first thing we will do is create a new ApexPHP application instance
- * which serves as the "glue" for all the components of Laravel, and is
- * the IoC container for the system binding all of the various parts.
+ * Create The Application Instance
  */
+$app = new Application(
+    dirname(__DIR__)
+);
 
-// 1. Define the base path of the application
-define('BASE_PATH', dirname(__DIR__));
+/**
+ * Bind Core Services as Singletons
+ */
+$app->singleton(Request::class, fn() => new Request());
 
-// 2. Bind the Composer autoloader
-// This file makes all of our classes and vendor packages available.
-require_once BASE_PATH . '/vendor/autoload.php';
+$app->singleton(Config::class, function(Application $app) {
+    // Pass the application's base path to the config service.
+    $config = new Config($app->basePath);
+    $config->load('database.php');
+    return $config;
+});
 
-// 3. Load environment variables from the .env file
-// This allows us to have different settings for different environments
-// without changing the codebase.
+$app->singleton(Database::class, function(Application $app) {
+    $config = $app->resolve(Config::class);
+    $connectionName = $config->get('database.default');
+    $connectionConfig = $config->get("database.connections.{$connectionName}");
+    return new Database($connectionConfig);
+});
+
+$app->singleton(Router::class, function(Application $app) {
+    $router = new Router($app);
+    foreach (glob($app->basePath . '/app/Modules/*/*.routes.php') as $routesFile) {
+        require $routesFile;
+    }
+    return $router;
+});
+
+/**
+ * Load Environment Variables
+ */
 try {
-    $dotenv = Dotenv\Dotenv::createImmutable(BASE_PATH);
+    $dotenv = Dotenv\Dotenv::createImmutable($app->basePath);
     $dotenv->load();
 } catch (\Dotenv\Exception\InvalidPathException $e) {
-    // This is not a fatal error if the .env file is missing,
-    // as the config files should have sensible defaults.
-    // In a production environment, you would likely want to enforce
-    // the presence of a .env file.
+    // The .env file is not mandatory.
 }
 
-// 4. Load the application's configuration files
-// We are loading them into our simple static Config class for now.
-use App\Core\Config;
-
-Config::load('database.php');
-// In a more advanced setup, we would loop through all files in the
-// config directory and load them automatically.
-
-// 5. Return the application instance (or just true for now)
-// In a full framework, this would return the Application object.
-return true;
+/**
+ * Return The Application Instance
+ */
+return $app;
