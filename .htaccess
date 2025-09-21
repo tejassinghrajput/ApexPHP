@@ -1,0 +1,36 @@
+<IfModule mod_rewrite.c>
+    # Turn on the rewrite engine
+    RewriteEngine On
+
+    # Set the web root to the /public directory
+    RewriteBase /
+
+    # Redirect trailing slashes from URLs
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)/$ /$1 [L,R=301]
+
+    # Handle Front Controller
+    # Send all requests to public/index.php if the file or directory doesn't exist
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+
+</IfModule>
+
+# Block access to sensitive files
+<Files ".env">
+    Order allow,deny
+    Deny from all
+</Files>
+<Files "composer.json">
+    Order allow,deny
+    Deny from all
+</Files>
+<Files "composer.lock">
+    Order allow,deny
+    Deny from all
+</Files>
+<Files "apex">
+    Order allow,deny
+    Deny from all
+</Files>

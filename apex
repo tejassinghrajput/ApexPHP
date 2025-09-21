@@ -1,18 +1,21 @@
 #!/usr/bin/env php
 <?php
 
-// Autoloader (PSR-4 compliant)
-spl_autoload_register(function ($class) {
-    $prefix = 'App\\';
-    if (strncmp($prefix, $class, strlen($prefix)) !== 0) {
-        return;
-    }
-    $relativeClass = substr($class, strlen($prefix));
-    $file = __DIR__ . '/app/' . str_replace('\\', '/', $relativeClass) . '.php';
-    if (file_exists($file)) {
-        require_once $file;
-    }
-});
+/**
+ * --------------------------------------------------------------------------
+ * Register The Auto Loader & Bootstrap The Application
+ * --------------------------------------------------------------------------
+ *
+ * Composer provides a convenient, automatically generated class loader for
+ * our application. We just need to utilize it! We'll simply require it
+ * into the script here so that we don't have to worry about manual
+ * loading any of our classes later on.
+ *
+ * The bootstrap file also loads environment variables and configuration.
+ */
+
+require_once __DIR__.'/bootstrap/app.php';
+
 
 // Command-line argument check
 if ($argc < 2) {
@@ -42,7 +45,7 @@ function handleMigrate()
     echo "Starting migration...\n";
     try {
         $pdo = App\Core\Database::getInstance();
-        $modulesPath = __DIR__ . '/app/Modules';
+        $modulesPath = BASE_PATH . '/app/Modules';
         if (!is_dir($modulesPath)) {
             echo "Modules directory not found.\n";
             return;
@@ -51,10 +54,10 @@ function handleMigrate()
         foreach ($moduleIterator as $moduleDir) {
             if ($moduleDir->isDir() && !$moduleDir->isDot()) {
                 $moduleName = $moduleDir->getFilename(); // e.g., "Payments"
-                $modelFilePattern = $moduleDir->getPathname() . '/*Model.php'; // Look for *Model.php
+                $modelFilePattern = $moduleDir->getPathname() . '/*Model.php';
 
                 foreach (glob($modelFilePattern) as $modelFile) {
-                    $className = basename($modelFile, '.php'); // e.g., "PaymentsModel"
+                    $className = basename($modelFile, '.php');
                     $fullClassName = 'App\\Modules\\' . $moduleName . '\\' . $className;
 
                     if (class_exists($fullClassName) && is_subclass_of($fullClassName, 'App\Core\ApexORM\Model')) {
@@ -96,7 +99,7 @@ function handleGenerateModule($argv)
     }
 
     $capitalizedModuleName = ucfirst($safeModuleName);
-    $modulePath = 'app/Modules/' . $capitalizedModuleName;
+    $modulePath = BASE_PATH . '/app/Modules/' . $capitalizedModuleName;
 
     if (file_exists($modulePath)) {
         echo "Error: Module '$capitalizedModuleName' already exists.\n";
