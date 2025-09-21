@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Modules\Payments;
+namespace App\Modules\{{ModuleName}};
 
 use App\Core\Controller;
 use App\Core\Request;
 
-class PaymentsController extends Controller
+class {{ModuleName}}Controller extends Controller
 {
-    public function __construct(protected PaymentsService $service) {}
+    public function __construct(protected {{ModuleName}}Service $service) {}
 
     public function index()
     {

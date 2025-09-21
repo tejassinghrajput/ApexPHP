@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Modules\Payments;
+namespace App\Modules\{{ModuleName}};
 
-class PaymentsService
+class {{ModuleName}}Service
 {
-    public function __construct(protected PaymentsRepositoryInterface $repository) {}
+    public function __construct(protected {{ModuleName}}RepositoryInterface $repository) {}
 
     public function getAll()
     {

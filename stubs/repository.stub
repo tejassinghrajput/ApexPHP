@@ -1,0 +1,13 @@
+<?php
+
+namespace App\Modules\{{ModuleName}};
+
+use App\Core\Repository;
+
+class {{ModuleName}}Repository extends Repository implements {{ModuleName}}RepositoryInterface
+{
+    public function model(): string
+    {
+        return {{ModuleName}}Model::class;
+    }
+}

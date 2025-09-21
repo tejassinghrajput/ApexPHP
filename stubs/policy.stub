@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Modules\Payments;
+namespace App\Modules\{{ModuleName}};
 
-class PaymentsPolicy
+class {{ModuleName}}Policy
 {
     /**
      * Authorization logic for the module goes here.
@@ -10,7 +10,7 @@ class PaymentsPolicy
      *
      * public function viewAny(User $user): bool
      * {
-     *     return $user->hasPermissionTo('view-payments');
+     *     return $user->hasPermissionTo('view-{{moduleName}}');
      * }
      */
 }

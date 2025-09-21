@@ -1,0 +1,10 @@
+<?php
+
+namespace App\Modules\{{ModuleName}};
+
+use App\Core\Contracts\RepositoryInterface;
+
+interface {{ModuleName}}RepositoryInterface extends RepositoryInterface
+{
+    // You can define module-specific repository methods here
+}

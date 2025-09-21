@@ -1,0 +1,10 @@
+<?php
+
+use App\Modules\{{ModuleName}}\{{ModuleName}}Controller;
+
+// The $router variable is provided by the application kernel.
+$router->get('/api/{{moduleName}}', [{{ModuleName}}Controller::class, 'index']);
+$router->get('/api/{{moduleName}}/{id}', [{{ModuleName}}Controller::class, 'show']);
+$router->post('/api/{{moduleName}}', [{{ModuleName}}Controller::class, 'store']);
+$router->put('/api/{{moduleName}}/{id}', [{{ModuleName}}Controller::class, 'update']);
+$router->delete('/api/{{moduleName}}/{id}', [{{ModuleName}}Controller::class, 'destroy']);

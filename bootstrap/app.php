@@ -19,7 +19,6 @@ $app = new Application(
 $app->singleton(Request::class, fn() => new Request());
 
 $app->singleton(Config::class, function(Application $app) {
-    // Pass the application's base path to the config service.
     $config = new Config($app->basePath);
     $config->load('database.php');
     return $config;
@@ -39,6 +38,23 @@ $app->singleton(Router::class, function(Application $app) {
     }
     return $router;
 });
+
+/**
+ * Dynamically Bind Module Repositories
+ */
+foreach (glob($app->basePath . '/app/Modules/*') as $moduleDir) {
+    if (is_dir($moduleDir)) {
+        $moduleName = basename($moduleDir);
+        $interface = "App\\Modules\\{$moduleName}\\{$moduleName}RepositoryInterface";
+        $implementation = "App\\Modules\\{$moduleName}\\{$moduleName}Repository";
+
+        if (interface_exists($interface) && class_exists($implementation)) {
+            // Bind the interface to a resolver function that resolves the concrete class.
+            $app->singleton($interface, fn(Application $app) => $app->resolve($implementation));
+        }
+    }
+}
+
 
 /**
  * Load Environment Variables

@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Modules\Payments;
+namespace App\Modules\{{ModuleName}};
 
 use App\Core\ApexORM\Model;
 
-class PaymentsModel extends Model
+class {{ModuleName}}Model extends Model
 {
     /**
      * The attributes that are mass assignable for security.
