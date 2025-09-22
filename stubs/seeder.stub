@@ -1,0 +1,25 @@
+<?php
+
+namespace Database\Seeders;
+
+// To use a model from a module, you must import it first.
+// use App\Modules\Payments\PaymentsModel;
+
+class {{SeederName}}
+{
+    /**
+     * Run the database seeds.
+     *
+     * @return void
+     */
+    public function run()
+    {
+        echo "--> Seeding {{SeederName}}...\n";
+
+        // --- Example ---
+        // (new PaymentsModel([
+        //     'amount' => 123.45,
+        //     'description' => 'A payment created from the seeder.'
+        // ]))->save();
+    }
+}

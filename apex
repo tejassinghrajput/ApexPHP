@@ -2,70 +2,86 @@
 <?php
 
 // 1. Register The Composer Auto Loader
-// THIS MUST BE THE FIRST THING THAT HAPPENS
 require_once __DIR__.'/vendor/autoload.php';
 
 // 2. Bootstrap The Application
 $app = require_once __DIR__.'/bootstrap/app.php';
 
-// --- Helper Functions ---
+use App\Core\CLI\Generator;
+
 function abort(string $message) {
     fwrite(STDERR, "Error: {$message}\n");
     exit(1);
 }
 
-// --- Argument Parsing & Command Routing ---
+function getArgument(array $argv, string $command): string {
+    if (!isset($argv[2])) {
+        abort("Missing name argument. Usage: apex {$command} <Name>");
+    }
+    $name = $argv[2];
+    if (!ctype_alnum(basename($name))) {
+        abort("Name must be a single alphanumeric word.");
+    }
+    return $name;
+}
+
 if ($argc < 2) {
     echo "ApexPHP CLI. Usage: apex <command>\n";
     exit(0);
 }
 $command = $argv[1];
 
-switch ($command) {
-    case 'generate:module':
-        handleGenerateModule($app, $argv);
-        break;
-    case 'migrate':
-        handleMigrate($app);
-        break;
-    default:
-        abort("Unknown command: $command");
+try {
+    switch ($command) {
+        case 'generate:module':
+            (new Generator(getArgument($argv, $command)))->generateAll();
+            break;
+        case 'generate:model':
+            (new Generator(getArgument($argv, $command)))->generateModel();
+            break;
+        case 'generate:controller':
+            (new Generator(getArgument($argv, $command)))->generateController();
+            break;
+        case 'generate:service':
+            (new Generator(getArgument($argv, $command)))->generateService();
+            break;
+        case 'generate:policy':
+            (new Generator(getArgument($argv, $command)))->generatePolicy();
+            break;
+        case 'generate:seeder':
+            handleGenerateSeeder($app, $argv);
+            break;
+        case 'migrate':
+            handleMigrate($app);
+            break;
+        case 'seed':
+            handleSeed($app);
+            break;
+        default:
+            abort("Unknown command: $command");
+    }
+} catch (Exception $e) {
+    abort($e->getMessage());
 }
 
-// --- Command Handlers ---
+function handleGenerateSeeder(App\Core\Application $app, array $argv) {
+    $seederName = getArgument($argv, 'generate:seeder');
+    $capitalized = ucfirst($seederName);
 
-function handleGenerateModule(App\Core\Application $app, array $argv) {
-    if (count($argv) < 3) { abort("Missing module name."); }
-    $moduleName = $argv[2];
-    $safeModuleName = basename($moduleName);
-    if ($safeModuleName !== $moduleName || !ctype_alnum($safeModuleName)) { abort("Module name must be a single alphanumeric word."); }
+    $stubPath = $app->basePath . '/stubs/seeder.stub';
+    if (!file_exists($stubPath)) { abort("Stub file not found at {$stubPath}"); }
 
-    $capitalized = ucfirst($safeModuleName);
-    $lowerCase = strtolower($safeModuleName);
-    $modulePath = $app->basePath . '/app/Modules/' . $capitalized;
+    $content = file_get_contents($stubPath);
+    $content = str_replace('{{SeederName}}', $capitalized, $content);
 
-    if (file_exists($modulePath)) { abort("Module '$capitalized' already exists."); }
-    if (!mkdir($modulePath, 0777, true)) { abort("Failed to create directory at $modulePath"); }
-    echo "Created module directory: $modulePath\n";
+    $seederPath = $app->basePath . '/database/seeders';
+    if (!is_dir($seederPath)) { mkdir($seederPath, 0777, true); }
 
-    $stubs = [
-        'model.stub' => "{$capitalized}Model.php",
-        'controller.stub' => "{$capitalized}Controller.php",
-        'service.stub' => "{$capitalized}Service.php",
-        'repository.interface.stub' => "{$capitalized}RepositoryInterface.php",
-        'repository.stub' => "{$capitalized}Repository.php",
-        'routes.stub' => "{$lowerCase}.routes.php",
-        'policy.stub' => "{$capitalized}Policy.php",
-    ];
+    $outputPath = $seederPath . '/' . $capitalized . '.php';
+    if (file_exists($outputPath)) { abort("Seeder {$capitalized} already exists."); }
 
-    foreach ($stubs as $stubFile => $outputFile) {
-        $content = file_get_contents(__DIR__ . '/stubs/' . $stubFile);
-        $content = str_replace(['{{ModuleName}}', '{{moduleName}}'], [$capitalized, $lowerCase], $content);
-        file_put_contents($modulePath . '/' . $outputFile, $content);
-        echo "  -> Created $outputFile\n";
-    }
-
-    echo "\nModule '$capitalized' created successfully!\n";
+    file_put_contents($outputPath, $content);
+    echo "  -> Created Seeder: {$capitalized}.php\n";
 }
 
 function handleMigrate(App\Core\Application $app) {
@@ -100,4 +116,22 @@ function handleMigrate(App\Core\Application $app) {
         abort("Migration failed: " . $e->getMessage());
     }
     echo "Migration finished.\n";
+}
+
+function handleSeed(App\Core\Application $app) {
+    echo "Seeding database...\n";
+    $seederPath = $app->basePath . '/database/seeders';
+    if (!is_dir($seederPath)) {
+        echo "No seeders found.\n";
+        return;
+    }
+
+    foreach (glob($seederPath . '/*.php') as $file) {
+        $className = "Database\\Seeders\\" . basename($file, '.php');
+        if (class_exists($className)) {
+            $seeder = $app->resolve($className);
+            $seeder->run();
+        }
+    }
+    echo "Database seeding completed.\n";
 }

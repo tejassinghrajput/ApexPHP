@@ -1,0 +1,38 @@
+<?php
+
+namespace App\Modules\Invoices;
+
+use App\Core\Controller;
+use App\Core\Request;
+
+class InvoicesController extends Controller
+{
+    public function __construct(protected InvoicesService $service) {}
+
+    public function index()
+    {
+        return $this->json($this->service->getAll());
+    }
+
+    public function show(Request $request, int $id)
+    {
+        $item = $this->service->find($id);
+        return $item ? $this->json($item) : $this->json(['message' => 'Not Found'], 404);
+    }
+
+    public function store(Request $request)
+    {
+        return $this->json($this->service->create($request->json()), 201);
+    }
+
+    public function update(Request $request, int $id)
+    {
+        $item = $this->service->update($id, $request->json());
+        return $item ? $this->json($item) : $this->json(['message' => 'Not Found'], 404);
+    }
+
+    public function destroy(Request $request, int $id)
+    {
+        return $this->service->delete($id) ? $this->json(null, 204) : $this->json(['message' => 'Not Found'], 404);
+    }
+}
